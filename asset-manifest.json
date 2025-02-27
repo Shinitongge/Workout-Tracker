@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/Workout-Tracker/static/css/main.c153186a.css",
+    "main.js": "/Workout-Tracker/static/js/main.bbe8c542.js",
+    "index.html": "/Workout-Tracker/index.html",
+    "main.c153186a.css.map": "/Workout-Tracker/static/css/main.c153186a.css.map",
+    "main.bbe8c542.js.map": "/Workout-Tracker/static/js/main.bbe8c542.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.c153186a.css",
+    "static/js/main.bbe8c542.js"
+  ]
+}
