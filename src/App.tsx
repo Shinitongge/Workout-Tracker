@@ -27,7 +27,7 @@ const Navigation = () => {
 
 function App() {
     return (
-        <Router>
+        <Router basename="/Workout-Tracker">
             <div className="App">
                 <Navigation />
                 <Routes>
