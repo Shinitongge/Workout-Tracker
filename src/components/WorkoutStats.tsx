@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { WeeklyStats, calculateWeeklyStats, WorkoutSession } from '../models/WorkoutTypes';
+import { 
+    WorkoutSession, 
+    WorkoutSet,
+    storageKeys, 
+    getFromLocalStorage 
+} from '../models/WorkoutTypes';
 
 interface WorkoutStatsProps {
     currentSession: WorkoutSession;
@@ -10,9 +15,17 @@ interface HistoricalAverage {
     totalVolume: number;
 }
 
-interface WeekRange {
-    start: Date;
-    end: Date;
+interface ExerciseStat {
+    exerciseId: string;
+    exerciseName: string;
+    totalFailureSets: number;
+    totalVolume: number;
+}
+
+interface WeeklyStats {
+    startDate: Date;
+    endDate: Date;
+    exerciseStats: ExerciseStat[];
 }
 
 export const WorkoutStats: React.FC<WorkoutStatsProps> = ({ currentSession }) => {
@@ -20,51 +33,116 @@ export const WorkoutStats: React.FC<WorkoutStatsProps> = ({ currentSession }) =>
     const [historicalAvg, setHistoricalAvg] = useState<Map<string, HistoricalAverage>>(new Map());
 
     useEffect(() => {
-        // 计算当前周统计
-        const stats = calculateWeeklyStats(currentSession);
-        setWeeklyStats(stats);
-
-        // 计算历史平均值
-        const { startDate } = stats;
-        const pastWeeks: WeekRange[] = [];
+        // 计算当前周的统计数据
+        const currentWeekStart = new Date(currentSession.date);
+        currentWeekStart.setHours(0, 0, 0, 0);
+        currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay());
         
-        // 获取过去4周的日期范围
-        for (let i = 1; i <= 4; i++) {
-            const weekStart = new Date(startDate);
-            weekStart.setDate(startDate.getDate() - (7 * i));
-            const weekEnd = new Date(weekStart);
-            weekEnd.setDate(weekStart.getDate() + 7);
-            pastWeeks.push({ start: weekStart, end: weekEnd });
-        }
+        const currentWeekEnd = new Date(currentWeekStart);
+        currentWeekEnd.setDate(currentWeekStart.getDate() + 6);
 
-        // 计算每个动作的历史平均值
-        const historicalStats = new Map<string, HistoricalAverage>();
-        stats.exerciseStats.forEach(stat => {
-            let totalFailureSets = 0;
-            let totalVolume = 0;
-            let weeksWithData = 0;
-
-            pastWeeks.forEach((week: WeekRange) => {
-                const weekStats = calculateWeeklyStats({
-                    id: '',
-                    date: week.start,
+        // 按动作分组计算当前周的统计数据
+        const exerciseMap = new Map<string, { name: string; sets: WorkoutSet[] }>();
+        currentSession.sets.forEach(set => {
+            if (!exerciseMap.has(set.exerciseId)) {
+                const exercises = getFromLocalStorage(storageKeys.EXERCISES) || [];
+                const exercise = exercises.find((e: any) => e.id === set.exerciseId);
+                exerciseMap.set(set.exerciseId, {
+                    name: exercise?.name || '未知动作',
                     sets: []
                 });
-                
-                const exerciseStats = weekStats.exerciseStats.find(
-                    s => s.exerciseId === stat.exerciseId
-                );
+            }
+            exerciseMap.get(set.exerciseId)?.sets.push(set);
+        });
 
-                if (exerciseStats) {
-                    totalFailureSets += exerciseStats.totalFailureSets;
-                    totalVolume += exerciseStats.totalVolume;
-                    weeksWithData++;
+        const currentStats: WeeklyStats = {
+            startDate: currentWeekStart,
+            endDate: currentWeekEnd,
+            exerciseStats: Array.from(exerciseMap.entries()).map(([id, { name, sets }]) => ({
+                exerciseId: id,
+                exerciseName: name,
+                totalFailureSets: sets.filter(s => s.isNearFailure).length,
+                totalVolume: sets.reduce((sum, s) => sum + s.weight * s.reps, 0)
+            }))
+        };
+        setWeeklyStats(currentStats);
+
+        // 获取所有历史记录
+        const allSessions = getFromLocalStorage(storageKeys.SESSIONS) || [];
+        
+        // 获取过去4周的数据（不包括当前周）
+        const pastSessions = allSessions.filter((session: WorkoutSession) => {
+            const sessionDate = new Date(session.date);
+            const sessionWeekStart = new Date(sessionDate);
+            sessionWeekStart.setHours(0, 0, 0, 0);
+            sessionWeekStart.setDate(sessionDate.getDate() - sessionDate.getDay());
+
+            return sessionWeekStart < currentWeekStart && 
+                   sessionWeekStart >= new Date(currentWeekStart.getTime() - 28 * 24 * 60 * 60 * 1000);
+        });
+
+        // 按周分组历史数据
+        const weeklyData = new Map<string, WorkoutSession[]>();
+        pastSessions.forEach((session: WorkoutSession) => {
+            const sessionDate = new Date(session.date);
+            const weekStart = new Date(sessionDate);
+            weekStart.setDate(sessionDate.getDate() - sessionDate.getDay());
+            const weekKey = weekStart.toISOString();
+
+            if (!weeklyData.has(weekKey)) {
+                weeklyData.set(weekKey, []);
+            }
+            weeklyData.get(weekKey)?.push(session);
+        });
+
+        // 计算每个动作在每周的统计数据
+        const exerciseStats = new Map<string, { failureSets: number[], volumes: number[] }>();
+        
+        weeklyData.forEach((sessions: WorkoutSession[], weekKey: string) => {
+            // 合并同一周的所有训练记录
+            const weekSets = sessions.flatMap(s => s.sets);
+            
+            // 按动作分组计算
+            weekSets.forEach((set: WorkoutSet) => {
+                if (!exerciseStats.has(set.exerciseId)) {
+                    exerciseStats.set(set.exerciseId, {
+                        failureSets: [],
+                        volumes: []
+                    });
                 }
-            });
 
-            historicalStats.set(stat.exerciseId, {
-                totalFailureSets: weeksWithData ? totalFailureSets / weeksWithData : 0,
-                totalVolume: weeksWithData ? totalVolume / weeksWithData : 0
+                const stats = exerciseStats.get(set.exerciseId)!;
+                const weekIndex = Array.from(weeklyData.keys()).indexOf(weekKey);
+
+                // 确保数组有足够的位置
+                while (stats.failureSets.length <= weekIndex) {
+                    stats.failureSets.push(0);
+                    stats.volumes.push(0);
+                }
+
+                if (set.isNearFailure) {
+                    stats.failureSets[weekIndex]++;
+                }
+                stats.volumes[weekIndex] += set.weight * set.reps;
+            });
+        });
+
+        // 计算历史平均值
+        const historicalStats = new Map<string, HistoricalAverage>();
+        exerciseStats.forEach((stats, exerciseId) => {
+            const nonZeroWeeks = stats.failureSets.filter(v => v > 0).length;
+            const avgFailureSets = nonZeroWeeks > 0 
+                ? stats.failureSets.reduce((a, b) => a + b, 0) / nonZeroWeeks 
+                : 0;
+
+            const nonZeroVolumeWeeks = stats.volumes.filter(v => v > 0).length;
+            const avgVolume = nonZeroVolumeWeeks > 0
+                ? stats.volumes.reduce((a, b) => a + b, 0) / nonZeroVolumeWeeks
+                : 0;
+
+            historicalStats.set(exerciseId, {
+                totalFailureSets: avgFailureSets,
+                totalVolume: avgVolume
             });
         });
 
