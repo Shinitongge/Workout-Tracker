@@ -98,33 +98,37 @@ export const WorkoutForm: React.FC<WorkoutFormProps> = ({
 
             {stage === 'INPUT_SET' && (
                 <form onSubmit={handleSubmit}>
-                    <h3>{exercises.find(e => e.id === currentExercise)?.name}</h3>
                     <div className="input-group">
-                        <label>第 {setNumber} 组：</label>
-                        <div className="set-inputs">
-                            <input
-                                type="number"
-                                placeholder="重量(kg)"
-                                value={weight || ''}
-                                onChange={(e) => setWeight(Number(e.target.value))}
-                                required
-                            />
-                            <input
-                                type="number"
-                                placeholder="重复次数"
-                                value={reps || ''}
-                                onChange={(e) => setReps(Number(e.target.value))}
-                                required
-                            />
-                            <div className="failure-checkbox">
+                        <div>
+                            <h3>{exercises.find(e => e.id === currentExercise)?.name}</h3>
+                            <div className="set-inputs">
                                 <input
-                                    type="checkbox"
-                                    id="isNearFailure"
-                                    checked={isNearFailure}
-                                    onChange={(e) => setIsNearFailure(e.target.checked)}
+                                    type="number"
+                                    placeholder="重量(KG)"
+                                    value={weight || ''}
+                                    onChange={(e) => setWeight(Number(e.target.value))}
+                                    required
                                 />
-                                <label htmlFor="isNearFailure">接近力竭</label>
+                                <input
+                                    type="number"
+                                    placeholder="重复次数"
+                                    value={reps || ''}
+                                    onChange={(e) => setReps(Number(e.target.value))}
+                                    required
+                                />
+                                <div className="failure-checkbox">
+                                    <input
+                                        type="checkbox"
+                                        id="isNearFailure"
+                                        checked={isNearFailure}
+                                        onChange={(e) => setIsNearFailure(e.target.checked)}
+                                    />
+                                    <label htmlFor="isNearFailure">接近力竭</label>
+                                </div>
                             </div>
+                            <p className="failure-tip">
+                                研究表明，接近或达到力竭的训练组，是增肌效益最大化的关键因素之一，训练次数控制在8至20次/组。
+                            </p>
                         </div>
                     </div>
 
