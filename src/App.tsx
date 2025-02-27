@@ -1,26 +1,42 @@
 import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import { BrowserRouter as Router, Route, Routes, Link, useLocation } from 'react-router-dom';
+import { WorkoutPage } from './pages/WorkoutPage';
+import { HistoryPage } from './pages/HistoryPage';
+
+// 创建导航组件
+const Navigation = () => {
+    const location = useLocation();
+    
+    return (
+        <nav className="main-nav">
+            <Link 
+                to="/" 
+                className={location.pathname === '/' ? 'active' : ''}
+            >
+                记录训练
+            </Link>
+            <Link 
+                to="/history" 
+                className={location.pathname === '/history' ? 'active' : ''}
+            >
+                历史记录
+            </Link>
+        </nav>
+    );
+};
 
 function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+    return (
+        <Router>
+            <div className="App">
+                <Navigation />
+                <Routes>
+                    <Route path="/" element={<WorkoutPage />} />
+                    <Route path="/history" element={<HistoryPage />} />
+                </Routes>
+            </div>
+        </Router>
+    );
 }
 
-export default App;
+export default App; 
