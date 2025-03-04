@@ -1,3 +1,6 @@
+在手机浏览器打开https://shinitongge.github.io/Workout-Tracker/，可直接运行，数据均储存于本地。
+Open https://shinitongge.github.io/Workout-Tracker/ at GoogleChrome or Safari on your Phone
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
